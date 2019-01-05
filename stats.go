@@ -229,9 +229,13 @@ func (c *counter) String() string {
 }
 
 func (c *counter) latch() uint64 {
-	value := c.Value()
-	lastSent := atomic.SwapUint64(&c.lastSentValue, value)
-	return value - lastSent
+	for {
+		cur := atomic.LoadUint64(&c.currentValue)
+		old := atomic.LoadUint64(&c.lastSentValue)
+		if atomic.CompareAndSwapUint64(&c.lastSentValue, old, cur) {
+			return cur - old
+		}
+	}
 }
 
 type gauge struct {

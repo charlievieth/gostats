@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -49,6 +50,57 @@ func TestTimer(t *testing.T) {
 	timer := sink.record
 	if !strings.Contains(timer, expected) {
 		t.Error("wanted timer value of test:9800.000000|ms, got", timer)
+	}
+}
+
+func TestCounterLatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping -short")
+	}
+	const N = 100000000
+	const Procs = 1
+	const Expeceted = Procs * N
+
+	c := new(counter)
+
+	awg := new(sync.WaitGroup)
+	awg.Add(Procs)
+	for i := 0; i < Procs; i++ {
+		go func() {
+			for i := 0; i < N; i++ {
+				c.Add(1)
+			}
+			awg.Done()
+		}()
+	}
+
+	done := make(chan struct{})
+	total := new(uint64)
+	twg := new(sync.WaitGroup)
+	for i := 0; i < 4; i++ {
+		twg.Add(1)
+		go func() {
+			var n uint64
+			for {
+				select {
+				case <-done:
+					n += c.latch()
+					atomic.AddUint64(total, n)
+					twg.Done()
+					return
+				default:
+					n += c.latch()
+				}
+			}
+		}()
+	}
+	awg.Wait()
+	close(done)
+	twg.Wait()
+
+	n := atomic.LoadUint64(total)
+	if n != Expeceted {
+		t.Errorf("Counter Latch: got: %d want: %d", n, Expeceted)
 	}
 }
 
