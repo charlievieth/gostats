@@ -272,6 +272,8 @@ type timer struct {
 }
 
 func (t *timer) time(dur time.Duration) {
+	// TODO (CEV): this doesn't need to be a float64 since
+	// the result is always a whole integer
 	t.sink.FlushTimer(t.name, float64(dur/time.Microsecond))
 }
 
@@ -558,7 +560,7 @@ func (s subScope) mergeTags(tags map[string]string) map[string]string {
 	if len(s.tags) == 0 {
 		return tags
 	}
-	if tags == nil {
+	if len(tags) == 0 {
 		return s.tags
 	}
 	for k, v := range s.tags {
