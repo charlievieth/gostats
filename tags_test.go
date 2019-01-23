@@ -19,3 +19,41 @@ func TestSerializeWithPerInstanceFlag(t *testing.T) {
 		t.Errorf("Serialized output (%s) didn't match expected output", serialized)
 	}
 }
+
+func BenchmarkSerializeTags(b *testing.B) {
+	const name = "prefix"
+	tags := map[string]string{
+		"tag1": "val1",
+		"tag2": "val2",
+		"tag3": "val3",
+		"tag4": "val4",
+		"tag5": "val5",
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = name + serializeTags(tags)
+	}
+}
+
+func BenchmarkSerializeTags_One(b *testing.B) {
+	const name = "prefix"
+	tags := map[string]string{
+		"tag1": "val1",
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = name + serializeTags(tags)
+	}
+}
+
+func BenchmarkSerializeTags_Two(b *testing.B) {
+	const name = "prefix"
+	tags := map[string]string{
+		"tag1": "val1",
+		"tag2": "val2",
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = name + serializeTags(tags)
+	}
+}
