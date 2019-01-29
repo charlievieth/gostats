@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"expvar"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -178,13 +177,13 @@ type StatGenerator interface {
 }
 
 // NewStore returns an Empty store that flushes to Sink passed as an argument.
+// Note: the export argument is unused.
 func NewStore(sink Sink, export bool) Store {
 	return &statStore{
 		counters: make(map[string]*counter),
 		gauges:   make(map[string]*gauge),
 		timers:   make(map[string]*timer),
 		sink:     sink,
-		export:   export,
 	}
 }
 
@@ -311,8 +310,7 @@ type statStore struct {
 	genMtx         sync.RWMutex
 	statGenerators []StatGenerator
 
-	sink   Sink
-	export bool
+	sink Sink
 }
 
 func (s *statStore) Flush() {
@@ -399,9 +397,6 @@ func (s *statStore) NewCounterWithTags(name string, tags map[string]string) Coun
 	s.counters[name] = c
 	s.countersMtx.Unlock()
 
-	if s.export {
-		publishExpVar(name, c)
-	}
 	return c
 }
 
@@ -440,9 +435,6 @@ func (s *statStore) NewGaugeWithTags(name string, tags map[string]string) Gauge 
 	s.gauges[name] = g
 	s.gaugesMtx.Unlock()
 
-	if s.export {
-		publishExpVar(name, g)
-	}
 	return g
 }
 
@@ -567,14 +559,4 @@ func (s subScope) mergeTags(tags map[string]string) map[string]string {
 		}
 	}
 	return tags
-}
-
-// seenExpVars prevents duplicate names from being published
-// to expvars since doing so triggers a panic.
-var seenExpVars sync.Map
-
-func publishExpVar(name string, v expvar.Var) {
-	if _, found := seenExpVars.LoadOrStore(name, struct{}{}); !found {
-		expvar.Publish(name, v)
-	}
 }
