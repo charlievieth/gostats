@@ -201,17 +201,3 @@ func getBuffer() *bytes.Buffer {
 func putBuffer(b *bytes.Buffer) {
 	bufferPool.Put(b)
 }
-
-var slicePool sync.Pool
-
-func getSlice() []byte {
-	if v := slicePool.Get(); v != nil {
-		b := v.([]byte)
-		return b[:0]
-	}
-	return make([]byte, 0, 128)
-}
-
-func putSlice(b []byte) {
-	slicePool.Put(b)
-}
