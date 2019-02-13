@@ -272,8 +272,6 @@ type timer struct {
 }
 
 func (t *timer) time(dur time.Duration) {
-	// TODO (CEV): this doesn't need to be a float64 since
-	// the result is always a whole integer
 	t.sink.FlushTimer(t.name, float64(dur/time.Microsecond))
 }
 

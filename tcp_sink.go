@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -42,14 +41,14 @@ func NewTCPStatsdSink() FlushableSink {
 }
 
 type tcpStatsdSink struct {
-	conn          net.Conn
-	outc          chan *bytes.Buffer
+	conn net.Conn
+	outc chan *bytes.Buffer
+
 	mu            sync.Mutex
 	droppedBytes  uint64
 	bufWriter     *bufio.Writer
 	flushCond     *sync.Cond
 	lastFlushTime time.Time
-	scratch       []byte
 }
 
 type sinkWriter struct {
@@ -114,19 +113,6 @@ func (s *tcpStatsdSink) handleFlushError(err error, droppedBytes int) {
 	s.bufWriter.Reset(&sinkWriter{
 		outc: s.outc,
 	})
-}
-
-func (s *tcpStatsdSink) flushUint64(name string, value uint64, ch byte) {
-	s.mu.Lock()
-	buf := append(s.scratch[:0], name...)
-	buf = append(buf, ':')
-	buf = strconv.AppendUint(buf, value, 10)
-	buf = append(buf, "|c\n"...)
-	_, err := s.bufWriter.Write(buf)
-	if err != nil {
-		s.handleFlushError(err, s.bufWriter.Buffered())
-	}
-	s.mu.Unlock()
 }
 
 func (s *tcpStatsdSink) FlushCounter(name string, value uint64) {
