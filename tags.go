@@ -84,35 +84,3 @@ func replaceChars(s string) string {
 	}
 	return string(buf)
 }
-
-func serializeTags_X(name string, pairs []tagPair) string {
-	const prefix = ".__"
-	const sep = "="
-
-	// n stores the length of the serialized name + tags
-	n := (len(prefix) + len(sep)) * len(pairs)
-	n += len(name)
-
-	sorted := true
-	var last string
-	for i := range pairs {
-		pairs[i].value = replaceChars(pairs[i].value)
-		p := pairs[i]
-		n += len(p.dimension) + len(p.value)
-		sorted = !sorted || last < p.value
-	}
-	if !sorted {
-		sort.Sort(tagSet(pairs))
-	}
-
-	// CEV: this is same as strings.Builder, but works with go1.9 and earlier
-	b := make([]byte, 0, n)
-	b = append(b, name...)
-	for _, tag := range pairs {
-		b = append(b, prefix...)
-		b = append(b, tag.dimension...)
-		b = append(b, sep...)
-		b = append(b, tag.value...)
-	}
-	return *(*string)(unsafe.Pointer(&b))
-}

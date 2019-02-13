@@ -63,21 +63,6 @@ func BenchmarkSerializeTags(b *testing.B) {
 	}
 }
 
-func BenchmarkSerializeTags_X(b *testing.B) {
-	const name = "prefix"
-	tags := []tagPair{
-		{"tag1", "val1"},
-		{"tag2", "val2"},
-		{"tag3", "val3"},
-		{"tag4", "val4"},
-		{"tag5", "val5"},
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		serializeTags_X(name, tags)
-	}
-}
-
 func BenchmarkSerializeTags_One(b *testing.B) {
 	const name = "prefix"
 	tags := map[string]string{
