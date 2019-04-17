@@ -236,11 +236,25 @@ func (r *ring) BetterConsume(fn func(st Stat)) {
 		}
 		// consume as many stats as we can while we have
 		// the lock
-		stats := stats[:0]
+
+		// n := cap(stats)
+		// if n > r.len {
+		// 	n = r.len
+		// }
+		// r.len -= n
+		// stats = stats[:n] // TODO: cap optimization ???
+		// for i := 0; i < n; i++ {
+		// 	stats[i] = r.head.Stat
+		// 	r.head = r.head.next
+		// }
+
+		stats = stats[:0]
+		// TODO (CEV): this may call cap() each interation
 		for ; r.len > 0 && len(stats) < cap(stats); r.len-- {
 			stats = append(stats, r.head.Stat)
 			r.head = r.head.next
 		}
+
 		r.mu.Unlock()
 		// call fn outside the lock
 		for i := range stats {
