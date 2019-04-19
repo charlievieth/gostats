@@ -100,6 +100,9 @@ type ring struct {
 	head *Element // we consume from head
 	tail *Element // we add to tail
 	root *Element // root node
+
+	max     int // max cap
+	dropped int // dropped stats
 }
 
 func newRing(n int) *ring {
@@ -124,6 +127,13 @@ func (r *ring) Len() int {
 func (r *ring) Cap() int {
 	r.mu.Lock()
 	n := r.cap
+	r.mu.Unlock()
+	return n
+}
+
+func (r *ring) Dropped() int {
+	r.mu.Lock()
+	n := r.dropped
 	r.mu.Unlock()
 	return n
 }
@@ -154,12 +164,16 @@ func (r *ring) Reset() {
 }
 
 // TODO: cap/limit size ???
-func (r *ring) grow() {
+func (r *ring) grow() bool {
 	// lock must be held
-	if r.cap == 0 {
-		r.cap = 32 // TODO: use a const
-	}
+
 	cap := r.cap * 2
+	if cap > r.max && r.max > 0 {
+		if r.cap == r.max {
+			return false
+		}
+		cap = r.max // r.cap < r.max
+	}
 	root := newList(cap)
 
 	// copy the old list moving head to the new root node
@@ -177,12 +191,17 @@ func (r *ring) grow() {
 	r.head = root
 	r.tail = tail
 	r.cap = cap
+	return true
 }
 
 func (r *ring) push(st Stat) {
 	r.mu.Lock()
-	if r.len == r.cap || r.cap == 0 {
-		r.grow()
+	if r.len == r.cap {
+		if !r.grow() {
+			r.dropped++
+			r.mu.Unlock()
+			return // TODO: count dropped stats
+		}
 	}
 	r.tail.Stat = st
 	r.tail = r.tail.next
@@ -198,17 +217,6 @@ func (r *ring) pop() (p *Element) {
 		r.len--
 	}
 	return p
-}
-
-// WARN: we can probably delete this
-func (r *ring) Pop() (Stat, bool) {
-	r.mu.Lock()
-	p := r.pop()
-	r.mu.Unlock()
-	if p != nil {
-		return p.Stat, true
-	}
-	return Stat{}, false
 }
 
 // TODO: keep only one of these
@@ -228,34 +236,29 @@ func (r *ring) Consume(fn func(st Stat)) {
 
 func (r *ring) BetterConsume(fn func(st Stat)) {
 	// WARN: need a sane minimum since r.cap may grow
-	stats := make([]Stat, 0, r.cap)
+	stats := make([]Stat, 0, r.Cap())
 	for {
 		r.mu.Lock()
 		for r.len == 0 {
 			r.cond.Wait()
 		}
+
 		// consume as many stats as we can while we have
 		// the lock
-
-		// n := cap(stats)
-		// if n > r.len {
-		// 	n = r.len
-		// }
-		// r.len -= n
-		// stats = stats[:n] // TODO: cap optimization ???
-		// for i := 0; i < n; i++ {
-		// 	stats[i] = r.head.Stat
-		// 	r.head = r.head.next
-		// }
-
-		stats = stats[:0]
-		// TODO (CEV): this may call cap() each interation
-		for ; r.len > 0 && len(stats) < cap(stats); r.len-- {
-			stats = append(stats, r.head.Stat)
+		n := cap(stats)
+		if n > r.len {
+			n = r.len
+		}
+		r.len -= n
+		stats = stats[:n] // TODO: cap optimization ???
+		for i := 0; i < n; i++ {
+			stats[i] = r.head.Stat
 			r.head = r.head.next
 		}
-
 		r.mu.Unlock()
+
+		// WARN (CEV): make sure this doesn't block forever
+		//
 		// call fn outside the lock
 		for i := range stats {
 			fn(stats[i])
@@ -282,11 +285,7 @@ func (r *ring) PushGauge(name string, value uint64) {
 }
 
 func (r *ring) PushTimer(name string, value float64) {
-	r.push(Stat{
-		Name:  name,
-		Value: math.Float64bits(value),
-		Typ:   timerStat,
-	})
+	r.push(Stat{Name: name, Value: math.Float64bits(value), Typ: timerStat})
 }
 
 type Conn struct {
