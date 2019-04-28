@@ -5,37 +5,9 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"sync"
 )
-
-type StatType int
-
-// TODO: export !!!
-const (
-	CounterStat = StatType(iota)
-	GaugeStat
-	TimerStat
-)
-
-// TODO: add WriteTo() method
-type Stat struct {
-	Name  string
-	Value uint64
-	Typ   StatType // TODO: make first struct field
-}
-
-func (s Stat) String() string {
-	switch s.Typ {
-	case CounterStat:
-		return fmt.Sprintf("%s:%d|c", s.Name, s.Value)
-	case GaugeStat:
-		return fmt.Sprintf("%s:%d|g", s.Name, s.Value)
-	case TimerStat:
-		return fmt.Sprintf("%s:%f|ms", s.Name, math.Float64frombits(s.Value))
-	default:
-		return fmt.Sprintf("invlaid stat type: %d", s.Typ)
-	}
-}
 
 type Element struct {
 	next *Element
@@ -138,7 +110,7 @@ func (r *ring) PushTimer(name string, value float64) {
 }
 
 func (r *ring) Consume(fn func(st Stat)) {
-	// WARN: need a sane minimum since r.cap may grow
+	// TODO: use a smaller cap?
 	stats := make([]Stat, 0, r.Cap())
 	for {
 		r.mu.Lock()
@@ -146,18 +118,17 @@ func (r *ring) Consume(fn func(st Stat)) {
 			r.cond.Wait()
 		}
 
+		// WARN: this only works if cap(stats) == r.Cap()
+		//
 		// consume as many stats as we can while we have
 		// the lock
-		n := cap(stats)
-		if n > r.len {
-			n = r.len
-		}
-		r.len -= n
-		stats = stats[:n] // TODO: cap optimization ???
-		for i := 0; i < n; i++ {
+		//
+		stats = stats[:r.len]
+		for i := range stats {
 			stats[i] = r.head.Stat
 			r.head = r.head.next
 		}
+		r.len = 0
 		r.mu.Unlock()
 
 		// WARN (CEV): make sure this doesn't block forever
@@ -206,7 +177,8 @@ func (c *Conn) Write(p []byte) (int, error) {
 }
 
 func main() {
-	fmt.Println("Hello")
+	s := strconv.FormatUint(math.MaxUint64, 10)
+	fmt.Println(s, len(s))
 
 	// r := newRing(5)
 	// go r.Consume(func(st Stat) {
