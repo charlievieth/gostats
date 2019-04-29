@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"math"
+	"net"
 	"strconv"
 	"sync"
 )
@@ -166,17 +165,19 @@ func (r *ring) Reset() {
 	r.mu.Unlock()
 }
 
-type Conn struct {
-	queue []byte
-	bw    *bufio.Writer
-	w     io.Writer
-}
-
-func (c *Conn) Write(p []byte) (int, error) {
-	return -1, nil
-}
-
 func main() {
+	addrs, _ := net.LookupHost("localhost")
+	for _, s := range addrs {
+		ip := net.ParseIP(s)
+		// if err != nil {
+		// 	fmt.Println("Error:", s, err)
+		// }
+		ipv4 := ip.To4()
+		fmt.Println(ip, len(ip), ipv4, len(ipv4))
+	}
+
+	return
+
 	s := strconv.FormatUint(math.MaxUint64, 10)
 	fmt.Println(s, len(s))
 
