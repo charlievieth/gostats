@@ -12,7 +12,7 @@ import (
 type StatType uint
 
 const (
-	CounterStat = StatType(iota)
+	CounterStat = StatType(iota + 1)
 	GaugeStat
 	TimerStat
 )

@@ -39,8 +39,8 @@ func newList(n int) *Element {
 type ring struct {
 	mu      sync.Mutex
 	cond    sync.Cond
-	len     int
-	cap     int
+	len     int      // number of buffered stats
+	cap     int      // total stat capacity
 	head    *Element // we consume from head
 	tail    *Element // we add to tail
 	root    *Element // root node
